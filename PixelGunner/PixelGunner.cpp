@@ -1,6 +1,6 @@
 ﻿#include "stdafx.h"
 #include "PixelGunner.h"
-#include <d3d9.h>
+#include "CGame.h"
 
 #define MAX_LOADSTRING 100
 
@@ -9,37 +9,15 @@ WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
 HWND g_hWnd;
 
+CGame g_CGame;
+
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
-VOID Render();
-VOID CleanUp();
-
 LPDIRECT3D9 g_pD3D = NULL;
 LPDIRECT3DDEVICE9 g_pd3dDevice = NULL;
-
-HRESULT InitD3D(HWND hWnd)
-{
-	if (NULL == (g_pD3D = Direct3DCreate9(D3D_SDK_VERSION)))
-	{
-		return E_FAIL;
-	}
-
-	D3DPRESENT_PARAMETERS d3dpp;
-	ZeroMemory(&d3dpp, sizeof(d3dpp));
-	d3dpp.Windowed = TRUE;
-	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
-
-	if (FAILED(g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &g_pd3dDevice)))
-	{
-		return E_FAIL;
-	}
-
-	return S_OK;
-}
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -56,8 +34,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     }
 
     MSG msg;
-
-	InitD3D(g_hWnd);
+	
+	g_CGame.InitD3D(g_hWnd);
 
     while (true)
     {
@@ -73,7 +51,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 		}
 		else
 		{
-			Render();
+			g_CGame.Update();
+			g_CGame.Render();
 		}
     }
 
@@ -105,6 +84,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
 	HWND hWnd;
 	hInst = hInstance;
+	RECT rect = { 0, 0, 1280, 720 };
+	AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, true);
 
 	g_hWnd = hWnd = CreateWindowW(
 		szWindowClass,
@@ -112,8 +93,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		0,
-		CW_USEDEFAULT,
-		0,
+		rect.right - rect.left,
+		rect.bottom - rect.top,
 		nullptr,
 		nullptr,
 		hInstance,
@@ -133,41 +114,27 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	int wmId, wmEvent;
+	PAINTSTRUCT ps;
+	HDC hdc;
+
     switch (message)
     {
-    case WM_COMMAND:
-        {
-            int wmId = LOWORD(wParam);
-
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
-        }
-        break;
-    case WM_PAINT:
-		Render();
-        break;
     case WM_DESTROY:
-		CleanUp();
+		g_CGame.CleanUp();
         PostQuitMessage(0);
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
+
     return 0;
 }
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
+
     switch (message)
     {
     case WM_INITDIALOG:
@@ -181,34 +148,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     }
+
     return (INT_PTR)FALSE;
-}
-
-VOID Render()
-{
-	if (NULL == g_pd3dDevice)
-	{
-		return;
-	}
-
-	g_pd3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 255), 1.0f, 0);
-
-	if (SUCCEEDED(g_pd3dDevice->BeginScene()))
-	{
-		g_pd3dDevice->EndScene();
-	}
-
-	g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
-}
-
-VOID CleanUp()
-{
-	if (g_pd3dDevice != NULL)
-	{
-		g_pd3dDevice->Release();
-	}
-	if (g_pD3D != NULL)
-	{
-		g_pD3D->Release();
-	}
 }
